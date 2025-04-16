@@ -154,39 +154,58 @@ Create a new Microsoft presentation and figure out what is the capital of India 
 1. Open PowerPoint
 2. Create a new presentation
 3. Draw a rectangle
-4. Write the text "Question: What is the capital of India? Answer: New Delhi (in morse code: -. . .-- / -.. . .-.. .... ..)" in the rectangle
+4. Write the text "Question: What is the capital of India? Answer: " in the rectangle
 
-## Implementation Details
 
-The implementation consists of:
 
-1. **Client-Server Communication**:
-   - The client communicates with the Gemini LLM to get responses.
-   - The client communicates with the MCP server to execute tools.
+## LLM Response
+Added description for tool: 25. open_preview() - Open Preview app and create a new document
+Successfully created tools description
+Created system prompt...
+Starting iteration loop...
 
-2. **Tool Execution**:
-   - The client parses the LLM response to extract the function name and arguments.
-   - The client calls the appropriate tool with the extracted arguments.
-   - The client processes the tool response and provides it to the LLM for the next iteration.
+--- Iteration 1 ---
+Preparing to generate LLM response...
+Starting LLM generation...
+LLM generation completed
+{'reasoning': 'Okay, I need to create a new PowerPoint presentation, figure out the capital of India, convert it to Morse code, and then write the question and answer in the same rectangle box in PowerPoint. First, I will open PowerPoint and create a new presentation.', 'self_correction': 'The reasoning seems correct. I need to start by opening PowerPoint.', 'function': 'open_powerpoint', 'parameters': ''}
+Calling function open_powerpoint with params 
+Executing MCP tool call with arguments: {}
+Processing request of type CallToolRequest
+Full result received: ['{"content": [{"type": "text", "text": "PowerPoint opened successfully", "annotations": null}]}']
 
-3. **Iteration Management**:
-   - The client tracks the iteration count and provides context to the LLM for each iteration.
-   - The client continues iterating until the LLM provides a final answer or the maximum number of iterations is reached.
+--- Iteration 2 ---
+Preparing to generate LLM response...
+Starting LLM generation...
+LLM generation completed
+{'reasoning': "Now that PowerPoint is open, I need to create a new presentation. I'll use the 'create_new_presentation' tool for this.", 'self_correction': 'The previous step opened PowerPoint successfully. Now the next logical step is to create a new presentation before adding any shapes or text.', 'function': 'create_new_presentation', 'parameters': ''}
+Calling function create_new_presentation with params 
+Executing MCP tool call with arguments: {}
+Processing request of type CallToolRequest
+Full result received: ['{"content": [{"type": "text", "text": "PowerPoint new presentation created successfully", "annotations": null}]}']
 
-## Future Improvements
+--- Iteration 3 ---
+Preparing to generate LLM response...
+Starting LLM generation...
+LLM generation completed
+{'reasoning': "Now that PowerPoint is open and a new presentation has been created, I need to determine the capital of India. Then I'll write it in morse code and add it to a rectangle box in the presentation, formatted as a question and answer.", 'self_correction': 'The plan is sound. The next step is to find the capital of India.', 'function': 'draw_rectangle', 'parameters': ''}
+Calling function draw_rectangle with params 
+Executing MCP tool call with arguments: {}
+Processing request of type CallToolRequest
+Full result received: ['{"content": [{"type": "text", "text": "Rectangle drawn from (90,72) to (366,113)", "annotations": null}]}']
 
-1. **Enhanced Error Handling**:
-   - Improve error handling for JSON parsing and function calls.
-   - Provide more detailed error messages to help with debugging.
+--- Iteration 4 ---
+Preparing to generate LLM response...
+Starting LLM generation...
+LLM generation completed
+{'reasoning': 'Now that I have opened PowerPoint, created a new presentation, and drawn a rectangle, I need to determine the capital of India and convert it to Morse code. Then, I can write the question and answer in the rectangle. The capital of India is New Delhi. The Morse code for New Delhi is: -. . .--   -.. . .-.. .... .. .\nI will now use the write_text tool to add the question and answer to the rectangle.', 'self_correction': "I need to combine the question and answer into a single string before writing it to the rectangle. I will format it as 'Question: What is the capital of India? Answer: New Delhi (Morse code: -. . .--   -.. . .-.. .... .. )'", 'function': 'write_text', 'parameters': {'text': 'Question: What is the capital of India? Answer: New Delhi (Morse code: -. . .--   -.. . .-.. .... .. )', 'x': '100', 'y': '100'}}
+Calling function write_text with params {'text': 'Question: What is the capital of India? Answer: New Delhi (Morse code: -. . .--   -.. . .-.. .... .. )', 'x': '100', 'y': '100'}
+Executing MCP tool call with arguments: {'text': 'Question: What is the capital of India? Answer: New Delhi (Morse code: -. . .--   -.. . .-.. .... .. )', 'x': '100', 'y': '100'}
+Processing request of type CallToolRequest
+Full result received: ['{"content": [{"type": "text", "text": "Text \'Question: What is the capital of India? Answer: New Delhi (Morse code: -. . .--   -.. . .-.. .... .. )\' written at position (850, 340)", "annotations": null}]}']
 
-2. **Improved Prompt Engineering**:
-   - Refine the system prompt to better guide the LLM in using the tools correctly.
-   - Add more examples of function calls to help the LLM understand how to format them.
-
-3. **Extended Tool Set**:
-   - Add more tools for PowerPoint manipulation.
-   - Add tools for other applications like Word, Excel, etc.
-
-4. **User Interface**:
-   - Develop a user interface for interacting with the system.
-   - Provide visual feedback on the execution of tasks. 
+--- Iteration 5 ---
+Preparing to generate LLM response...
+Starting LLM generation...
+LLM generation completed
+{'reasoning': 'The task is completed, the question and answer have been written to the rectangle in the powerpoint presentation', 'self_correction': 'The question is complete and the answer has been provided', 'answer': 'DONE'}
