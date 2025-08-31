@@ -1,0 +1,57 @@
+{
+  "topic": "Increasing context length for large language models",
+  "searched_urls": [
+    "https://arxiv.org/abs/2308.03296",
+    "https://arxiv.org/abs/2306.15595",
+    "https://arxiv.org/abs/2305.19370"
+  ],
+  "processed_urls": [
+    "https://arxiv.org/abs/2308.03296",
+    "https://arxiv.org/abs/2306.15595",
+    "https://arxiv.org/abs/2305.19370"
+  ],
+  "papers": [
+    {
+      "rank": 1,
+      "url": "https://arxiv.org/abs/2306.15595",
+      "title": "[2306.15595] Extending Context Window of Large Language Models via Positional Interpolation",
+      "similarity": 0.6938259601593018,
+      "summary_100_words": "This paper introduces Position Interpolation (PI), a method to significantly extend the context window of RoPE-based large language models (LLMs) like LLaMA. PI linearly downscales input position indices to fit within the model's original context window, avoiding the instability of extrapolation. This allows extending context lengths to 32768 tokens with minimal fine-tuning (under 1000 steps), maintaining performance on tasks within the original window while showing strong results on long-context tasks like passkey retrieval, language modeling, and long document summarization across various LLaMA model sizes (7B to 65B). The method's theoretical analysis demonstrates its superior stability compared to extrapolation, and its practicality stems from preserving the original model architecture and infrastructure."
+    },
+    {
+      "rank": 2,
+      "url": "https://arxiv.org/abs/2305.19370",
+      "title": "[2305.19370] Blockwise Parallel Transformer for Large Context Models",
+      "similarity": 0.5361843109130859,
+      "summary_100_words": "The Blockwise Parallel Transformer (BPT) addresses the memory limitations of standard Transformers when handling long sequences. BPT achieves this through a novel blockwise parallel computation of self-attention and feedforward networks. This approach significantly reduces memory consumption, allowing BPT to process sequences up to 32 times longer than vanilla Transformers and 4 times longer than existing memory-efficient alternatives. Experiments on language modeling and reinforcement learning tasks demonstrate BPT's effectiveness in both reducing memory requirements and improving performance on long-sequence tasks, showcasing its potential for handling extremely long-context problems."
+    }
+  ],
+  "diagnostics": {
+    "candidate_count": 3,
+    "discarded": 1,
+    "timings_ms": {
+      "search_and_collect": 0.45990943908691406,
+      "fetch_and_extract": 654.620885848999,
+      "rank_by_similarity": 18356.52995109558,
+      "summarize_top_papers": 5299.269914627075
+    },
+    "total_time_ms": 24311.02204322815,
+    "agent_stats": {
+      "perception": {
+        "urls_searched": 3,
+        "urls_fetched": 3,
+        "urls_extracted": 2,
+        "urls_failed": 1,
+        "total_fetch_time": 0.5073361396789551,
+        "total_extract_time": 0.13538551330566406
+      },
+      "decision": {
+        "docs_ranked": 2,
+        "docs_summarized": 2,
+        "total_rank_time": 18.35633683204651,
+        "total_summarize_time": 5.298673868179321
+      }
+    },
+    "llm_provider": "Gemini Flash"
+  }
+}
