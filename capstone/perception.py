@@ -11,6 +11,7 @@ from readability import Document
 import pypdf
 import io
 import time
+import random
 from config import (
     RESEARCH_DOMAINS, RESEARCH_PATTERNS, REQUEST_TIMEOUT, 
     REQUEST_HEADERS, MAX_URLS_TO_PROCESS, PLACEHOLDER_SEARCH_RESULTS
@@ -24,36 +25,175 @@ def search_web(topic: str) -> List[str]:
     Returns up to 10 candidate URLs from the first results page.
     """
     try:
-        # Use a simple search approach - in a real implementation, you'd use
-        # a proper search API like SerpAPI, Bing, or Brave Search
-        search_query = f"{topic} research paper filetype:pdf OR site:arxiv.org OR site:openreview.net"
+        logger.info(f"🔍 SEARCHING WEB: {topic}")
         
-        # For demonstration, we'll use a simple approach
-        # In production, you'd integrate with a real search API
-        logger.info(f"🔍 SEARCHING WEB: {search_query}")
-        logger.debug(f"Search query constructed: {search_query}")
+        # Try multiple search strategies
+        search_results = []
         
-        # Use placeholder results from config
-        # In a real implementation, you would:
-        # 1. Call a search API (SerpAPI, Bing, Brave, etc.)
-        # 2. Parse the results
-        # 3. Filter for research paper URLs
-        # 4. Return up to 10 candidates
+        # Strategy 1: Google Scholar search
+        try:
+            google_scholar_urls = search_google_scholar(topic)
+            search_results.extend(google_scholar_urls)
+            logger.info(f"📚 Google Scholar: Found {len(google_scholar_urls)} URLs")
+        except Exception as e:
+            logger.warning(f"⚠️  Google Scholar search failed: {e}")
         
-        logger.warning("⚠️  Using placeholder search results. Replace with actual search API integration.")
-        logger.info(f"📋 Found {len(PLACEHOLDER_SEARCH_RESULTS)} placeholder URLs")
+        # Strategy 2: arXiv direct search
+        try:
+            arxiv_urls = search_arxiv(topic)
+            search_results.extend(arxiv_urls)
+            logger.info(f"📄 arXiv: Found {len(arxiv_urls)} URLs")
+        except Exception as e:
+            logger.warning(f"⚠️  arXiv search failed: {e}")
         
-        urls = PLACEHOLDER_SEARCH_RESULTS[:MAX_URLS_TO_PROCESS]
-        logger.info(f"✅ Returning {len(urls)} URLs for processing")
+        # Strategy 3: Semantic Scholar search
+        try:
+            semantic_urls = search_semantic_scholar(topic)
+            search_results.extend(semantic_urls)
+            logger.info(f"🔬 Semantic Scholar: Found {len(semantic_urls)} URLs")
+        except Exception as e:
+            logger.warning(f"⚠️  Semantic Scholar search failed: {e}")
         
-        # Log each URL for debugging
-        for i, url in enumerate(urls, 1):
+        # Remove duplicates while preserving order
+        seen = set()
+        unique_results = []
+        for url in search_results:
+            if url not in seen:
+                seen.add(url)
+                unique_results.append(url)
+        
+        # If no real results, fall back to placeholder with warning
+        if not unique_results:
+            logger.warning("⚠️  No real search results found, using placeholder URLs")
+            unique_results = PLACEHOLDER_SEARCH_RESULTS[:MAX_URLS_TO_PROCESS]
+        else:
+            logger.info(f"✅ Real search completed: Found {len(unique_results)} unique URLs")
+        
+        # Limit to max URLs
+        final_urls = unique_results[:MAX_URLS_TO_PROCESS]
+        
+        logger.info(f"📋 Final URL collection: {len(final_urls)} URLs")
+        for i, url in enumerate(final_urls, 1):
             logger.debug(f"  {i}. {url}")
         
-        return urls
+        return final_urls
         
     except Exception as e:
         logger.error(f"❌ Error in web search: {e}")
+        logger.warning("⚠️  Falling back to placeholder URLs")
+        return PLACEHOLDER_SEARCH_RESULTS[:MAX_URLS_TO_PROCESS]
+
+def search_google_scholar(topic: str) -> List[str]:
+    """Search Google Scholar for research papers."""
+    try:
+        # Create search query
+        search_query = f"{topic} research paper filetype:pdf OR site:arxiv.org OR site:openreview.net"
+        search_url = f"https://scholar.google.com/scholar?q={requests.utils.quote(search_query)}"
+        
+        logger.debug(f"🔍 Google Scholar search URL: {search_url}")
+        
+        # Use a more realistic user agent
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.5',
+            'Accept-Encoding': 'gzip, deflate',
+            'DNT': '1',
+            'Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1',
+        }
+        
+        response = requests.get(search_url, headers=headers, timeout=REQUEST_TIMEOUT)
+        response.raise_for_status()
+        
+        # Parse HTML for links
+        soup = BeautifulSoup(response.text, 'html.parser')
+        urls = []
+        
+        # Look for research paper links
+        for link in soup.find_all('a', href=True):
+            href = link.get('href', '')
+            
+            # Extract actual URLs from Google Scholar redirects
+            if href.startswith('/url?q='):
+                actual_url = href.split('/url?q=')[1].split('&')[0]
+                if is_research_paper_url(actual_url):
+                    urls.append(actual_url)
+            elif href.startswith('http') and is_research_paper_url(href):
+                urls.append(href)
+        
+        # Remove duplicates
+        unique_urls = list(dict.fromkeys(urls))
+        logger.debug(f"🔍 Google Scholar: Found {len(unique_urls)} research URLs")
+        
+        return unique_urls[:5]  # Limit to top 5
+        
+    except Exception as e:
+        logger.error(f"❌ Google Scholar search error: {e}")
+        return []
+
+def search_arxiv(topic: str) -> List[str]:
+    """Search arXiv directly for research papers."""
+    try:
+        # Create arXiv search query
+        search_query = topic.replace(' ', '+')
+        search_url = f"http://export.arxiv.org/api/query?search_query=all:{search_query}&start=0&max_results=10&sortBy=relevance&sortOrder=descending"
+        
+        logger.debug(f"🔍 arXiv search URL: {search_url}")
+        
+        response = requests.get(search_url, timeout=REQUEST_TIMEOUT)
+        response.raise_for_status()
+        
+        # Parse XML response
+        soup = BeautifulSoup(response.content, 'xml')
+        urls = []
+        
+        # Extract arXiv URLs
+        for entry in soup.find_all('entry'):
+            id_elem = entry.find('id')
+            if id_elem:
+                arxiv_id = id_elem.text.strip()
+                if arxiv_id.startswith('http://arxiv.org/abs/'):
+                    urls.append(arxiv_id)
+        
+        logger.debug(f"🔍 arXiv: Found {len(urls)} URLs")
+        return urls[:5]  # Limit to top 5
+        
+    except Exception as e:
+        logger.error(f"❌ arXiv search error: {e}")
+        return []
+
+def search_semantic_scholar(topic: str) -> List[str]:
+    """Search Semantic Scholar for research papers."""
+    try:
+        # Create search query
+        search_query = requests.utils.quote(topic)
+        search_url = f"https://api.semanticscholar.org/graph/v1/paper/search?query={search_query}&limit=10&fields=url,title,abstract"
+        
+        logger.debug(f"🔍 Semantic Scholar search URL: {search_url}")
+        
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        }
+        
+        response = requests.get(search_url, headers=headers, timeout=REQUEST_TIMEOUT)
+        response.raise_for_status()
+        
+        data = response.json()
+        urls = []
+        
+        # Extract URLs from response
+        for paper in data.get('data', []):
+            if 'url' in paper and paper['url']:
+                url = paper['url']
+                if is_research_paper_url(url):
+                    urls.append(url)
+        
+        logger.debug(f"🔍 Semantic Scholar: Found {len(urls)} URLs")
+        return urls[:5]  # Limit to top 5
+        
+    except Exception as e:
+        logger.error(f"❌ Semantic Scholar search error: {e}")
         return []
 
 def is_research_paper_url(url: str) -> bool:
@@ -81,11 +221,26 @@ def fetch_page(url: str) -> Dict[str, Any]:
     """
     try:
         logger.info(f"🌐 FETCHING PAGE: {url}")
-        logger.debug(f"Request headers: {REQUEST_HEADERS}")
+        
+        # Add random delay to be respectful
+        time.sleep(random.uniform(1, 3))
+        
+        # Enhanced headers for better compatibility
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.5',
+            'Accept-Encoding': 'gzip, deflate',
+            'DNT': '1',
+            'Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1',
+        }
+        
+        logger.debug(f"Request headers: {headers}")
         logger.debug(f"Timeout: {REQUEST_TIMEOUT} seconds")
         
         start_time = time.time()
-        response = requests.get(url, headers=REQUEST_HEADERS, timeout=REQUEST_TIMEOUT, allow_redirects=True)
+        response = requests.get(url, headers=headers, timeout=REQUEST_TIMEOUT, allow_redirects=True)
         fetch_time = time.time() - start_time
         
         response.raise_for_status()
@@ -188,36 +343,41 @@ def extract_text(url: str, raw: Any, content_type: str) -> Dict[str, Any]:
             
             if isinstance(raw, str):
                 try:
-                    # Use readability to extract main content
-                    doc = Document(raw)
-                    title = doc.title()
-                    
-                    logger.debug(f"📋 HTML Title: {title}")
-                    
-                    # Parse with BeautifulSoup for better text extraction
+                    # Parse with BeautifulSoup
                     soup = BeautifulSoup(raw, 'html.parser')
                     
-                    # Remove script and style elements
-                    scripts_removed = len(soup.find_all(['script', 'style']))
-                    for script in soup(["script", "style"]):
-                        script.decompose()
-                    logger.debug(f"🧹 Removed {scripts_removed} script/style elements")
-                    
-                    # Get text from readability-processed content
-                    readable_content = doc.summary()
-                    if readable_content:
-                        readable_soup = BeautifulSoup(readable_content, 'html.parser')
-                        text = readable_soup.get_text(separator='\n', strip=True)
-                        logger.debug(f"📖 Using readability-extracted content")
+                    # Special handling for arXiv
+                    if 'arxiv.org' in url:
+                        title, text = extract_arxiv_content(soup, url)
+                        extraction_method = "arXiv-specific extraction"
                     else:
-                        # Fallback to main content extraction
-                        main_content = soup.find('main') or soup.find('article') or soup.find('body')
-                        if main_content:
-                            text = main_content.get_text(separator='\n', strip=True)
-                            logger.debug(f"📖 Using main content extraction")
+                        # Use readability for general HTML
+                        doc = Document(raw)
+                        title = doc.title()
+                        
+                        logger.debug(f"📋 HTML Title: {title}")
+                        
+                        # Remove script and style elements
+                        scripts_removed = len(soup.find_all(['script', 'style']))
+                        for script in soup(["script", "style"]):
+                            script.decompose()
+                        logger.debug(f"🧹 Removed {scripts_removed} script/style elements")
+                        
+                        # Get text from readability-processed content
+                        readable_content = doc.summary()
+                        if readable_content:
+                            readable_soup = BeautifulSoup(readable_content, 'html.parser')
+                            text = readable_soup.get_text(separator='\n', strip=True)
+                            logger.debug(f"📖 Using readability-extracted content")
                         else:
-                            text = soup.get_text(separator='\n', strip=True)
-                            logger.debug(f"📖 Using full body extraction")
+                            # Fallback to main content extraction
+                            main_content = soup.find('main') or soup.find('article') or soup.find('body')
+                            if main_content:
+                                text = main_content.get_text(separator='\n', strip=True)
+                                logger.debug(f"📖 Using main content extraction")
+                            else:
+                                text = soup.get_text(separator='\n', strip=True)
+                                logger.debug(f"📖 Using full body extraction")
                     
                     # Clean up text
                     original_length = len(text)
@@ -273,6 +433,71 @@ def extract_text(url: str, raw: Any, content_type: str) -> Dict[str, Any]:
             "extraction_method": "error",
             "text_length": 0
         }
+
+def extract_arxiv_content(soup: BeautifulSoup, url: str) -> tuple[str, str]:
+    """Extract content specifically from arXiv pages."""
+    try:
+        title = ""
+        text = ""
+        
+        # Extract title
+        title_elem = soup.find('h1', class_='title') or soup.find('h1')
+        if title_elem:
+            title = title_elem.get_text(strip=True)
+            # Remove "Title:" prefix if present
+            if title.startswith('Title:'):
+                title = title[6:].strip()
+        
+        # Extract abstract
+        abstract_elem = soup.find('blockquote', class_='abstract') or soup.find('div', class_='abstract')
+        if abstract_elem:
+            abstract_text = abstract_elem.get_text(strip=True)
+            # Remove "Abstract:" prefix if present
+            if abstract_text.startswith('Abstract:'):
+                abstract_text = abstract_text[9:].strip()
+            text += f"Abstract: {abstract_text}\n\n"
+        
+        # Extract authors
+        authors_elem = soup.find('div', class_='authors') or soup.find('div', class_='author')
+        if authors_elem:
+            authors_text = authors_elem.get_text(strip=True)
+            if authors_text.startswith('Authors:'):
+                authors_text = authors_text[8:].strip()
+            text += f"Authors: {authors_text}\n\n"
+        
+        # Extract subjects/categories
+        subjects_elem = soup.find('div', class_='subjects') or soup.find('div', class_='categories')
+        if subjects_elem:
+            subjects_text = subjects_elem.get_text(strip=True)
+            if subjects_text.startswith('Subjects:'):
+                subjects_text = subjects_text[9:].strip()
+            text += f"Subjects: {subjects_text}\n\n"
+        
+        # Extract additional content from main area
+        main_content = soup.find('div', class_='leftcolumn') or soup.find('div', id='content')
+        if main_content:
+            # Get all text content
+            content_text = main_content.get_text(separator='\n', strip=True)
+            if content_text:
+                text += f"Content:\n{content_text}\n"
+        
+        # If we still don't have much text, try general extraction
+        if len(text.strip()) < 100:
+            # Fallback to general text extraction
+            body_text = soup.find('body')
+            if body_text:
+                text = body_text.get_text(separator='\n', strip=True)
+        
+        logger.debug(f"📄 arXiv extraction: Title length={len(title)}, Text length={len(text)}")
+        return title, text
+        
+    except Exception as e:
+        logger.warning(f"⚠️  Error in arXiv-specific extraction: {e}")
+        # Fallback to general extraction
+        title = soup.find('title')
+        title_text = title.get_text(strip=True) if title else ""
+        text = soup.get_text(separator='\n', strip=True)
+        return title_text, text
 
 def filter_research_papers(urls: List[str]) -> List[str]:
     """Filter URLs to keep only those likely to be research papers."""
